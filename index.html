@@ -67,10 +67,10 @@
         <!-- Header -->
         <header class="text-center mb-10">
             <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight">
-                BuoBuo Ka Pre-Order
+                BuoBuo Ka Pre-Order Ka Na
             </h1>
             <h2 class="text-xl font-medium text-blue-600 mt-1">
-                A Product by Team A.N.G. A. Co.
+                by Team A.N.G. A. Co.
             </h2>
             <div class="mt-4 flex justify-center space-x-4">
                 <button id="nav-order-builder" onclick="window.app.selectStep('mode_selection')" class="text-lg font-semibold px-4 py-2 rounded-lg transition-colors bg-blue-100 text-blue-800 hover:bg-blue-200">
@@ -240,16 +240,16 @@
         
         // --- APPLICATION CONSTANTS (Same as before) ---
         const BASE_PRICES = {
-            '2D': 500.00,  // PHP
-            '3D': 1500.00  // PHP
+            '2D': 59.00,  // PHP
+            '3D': 59.00  // PHP
         };
 
         const ADD_ONS = [
-            { id: 'delivery', name: 'Standard Delivery (Flat Rate)', price: 150.00, description: 'Flat rate for delivery within the region.' },
-            { id: 'custom_card', name: 'Customized Message Card', price: 50.00, description: 'A personalized card included with the order.' },
-            { id: 'ferry_lights', name: 'Fairy Lights Only', price: 100.00, description: 'Ambient LED fairy lights (battery not included).' },
-            { id: 'acrylic_box', name: 'Acrylic Display Box Only', price: 200.00, description: 'Premium, clear acrylic display box.' },
-            { id: 'combo', name: 'Fairy Lights & Acrylic Box Combo', price: 250.00, description: 'Both lights and the premium display box together.' }
+            { id: 'delivery', name: 'Standard Delivery (Flat Rate)', price: 10.00, description: 'Flat rate for delivery within the school, directly to classroom. Otherwise, pickup at STEM 201 - Haribon (see fb page for updates).' },
+            { id: 'custom_card', name: 'Custom Card', price: 6.00, description: 'A personalized card included with the order.' },
+            { id: 'ferry_lights', name: 'Fairy Lights Only', price: 10.00, description: 'Fairy lights 3 Modes 1M.' },
+            { id: 'acrylic_box', name: 'Acrylic Display Box Only', price: 50.00, description: 'Clear white acrylic box 6x7.2x10.4 cm' },
+            { id: 'combo', name: 'Fairy Lights & Acrylic Box Combo', price: 55.00, description: 'Both lights and the display box together.' }
         ];
 
         // --- IMAGE DATA (Same as before) ---
@@ -557,7 +557,16 @@
 
             selectionArea.innerHTML = `
                 <h4 class="text-xl font-bold text-gray-800 mb-4">Custom Image Upload (${formatCurrency(price)})</h4>
-                <p class="text-sm text-gray-600 mb-6">Upload your own design or photo. We accept high-resolution JPEG or PNG files.</p>
+                <p class="text-sm text-gray-600 mb-6">Upload your own custom design or photo. Please follow guidlines below (baka mahirapan kami 😩).</p>
+                <p Terms & Consent for Custom Orders: </p>
+                <p By submitting an image for a custom BuoBuoKa figurine, I agree that: </p>
+                <p The image will only be used to create my custom product. Team ANG will not share, distribute, or use the image for marketing, social media, or any other purpose without my explicit permission. </p>
+                <p I confirm that the image is appropriate and does not infringe on copyrights or third-party rights.</p>
+                <p I understand that custom builds are non-refundable once production begins. </p>
+                <p Custom Design Guidelines: </p>
+                <p *Image Complexity - To ensure your custom figurine looks good in bricks, images must be clear and simple, not overly detailed. Highly complex images may be simplified by our team. </p>
+                <p *Size Limit - Each custom design is built to fit a small, display-friendly block size (to fit inside acrylic box size). This means large or very detailed images may lose details when translated into the figure. </p>
+                <p What We Do - Our team will adapt your image to fit the buildable block size, maintaining the key features and colors. “Made by humans, loved by you—BuoBuoKa.” </p>
                 
                 <div class="space-y-4">
                     <p class="text-sm text-gray-600 mb-2">
