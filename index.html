@@ -157,7 +157,7 @@
         const MESSAGE_BOX = document.getElementById('message-box');
         
         // MANAGER GATE KEY: Use a simple PIN to restrict dashboard viewing
-        const MANAGER_KEY = "1234"; 
+        const MANAGER_KEY = "1435"; 
 
         /**
          * Updates the status message in the footer based on the connection state.
@@ -508,7 +508,7 @@
 
             selectionArea.innerHTML = `
                 <h4 class="text-xl font-bold text-gray-800 mb-4">${dimension} Pre-set Designs (${formatCurrency(price)})</h4>
-                <p class="text-sm text-gray-600 mb-6">Select a pre-designed pattern or image to engrave. Click the "Add to Order" button to finalize the quantity.</p>
+                <p class="text-sm text-gray-600 mb-6">Select a pre-designed pattern or image to buobuo. Click the "Add to Order" button to finalize the quantity.</p>
                 
                 <div id="design-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     ${designs.map(design => `
@@ -577,8 +577,8 @@
                     <label class="block text-sm font-medium text-gray-700">Select Dimension:</label>
                     <select id="custom-dimension" onchange="window.app.updateCustomization(this.value)" 
                             class="block w-full md:w-1/2 p-3 border border-gray-300 bg-white rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                        <option value="2D" ${dimension === '2D' ? 'selected' : ''}>2D Engraving (${formatCurrency(BASE_PRICES['2D'])})</option>
-                        <option value="3D" ${dimension === '3D' ? 'selected' : ''}>3D Engraving (${formatCurrency(BASE_PRICES['3D'])})</option>
+                        <option value="2D" ${dimension === '2D' ? 'selected' : ''}>2D BuoBuoKa (${formatCurrency(BASE_PRICES['2D'])})</option>
+                        <option value="3D" ${dimension === '3D' ? 'selected' : ''}>3D BuoBuoKa (${formatCurrency(BASE_PRICES['3D'])})</option>
                     </select>
 
                     <label class="block text-sm font-medium text-gray-700 pt-4">Google Drive Link to Your Design:</label>
@@ -620,8 +620,8 @@
             // Update the display text of the select element without re-rendering the whole form
             const selectEl = document.getElementById('custom-dimension');
             if (selectEl) {
-                selectEl.options[0].textContent = `2D Engraving (${formatCurrency(BASE_PRICES['2D'])})`;
-                selectEl.options[1].textContent = `3D Engraving (${formatCurrency(BASE_PRICES['3D'])})`;
+                selectEl.options[0].textContent = `2D BuoBuo Ka (${formatCurrency(BASE_PRICES['2D'])})`;
+                selectEl.options[1].textContent = `3D BuoBuo Ka (${formatCurrency(BASE_PRICES['3D'])})`;
             }
             
             // Update header price
@@ -906,7 +906,7 @@
             APP_CONTAINER.innerHTML = `
                 <h3 class="text-2xl font-semibold mb-6 text-gray-800 text-center">📊 Manager Dashboard Access</h3>
                 <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-                    <p class="text-gray-700 mb-4 text-center">Enter the Manager Key (PIN: **${MANAGER_KEY}**) to view private orders.</p>
+                    <p class="text-gray-700 mb-4 text-center">Enter the Manager Key to view private orders.</p>
                     <div class="flex flex-col space-y-4">
                         <input type="password" id="manager-key-input" maxlength="4" placeholder="••••"
                                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4);"
