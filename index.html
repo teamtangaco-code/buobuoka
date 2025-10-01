@@ -969,7 +969,7 @@
             }
             
             // *** PRIVATE DATA PATH ***
-            const collectionPath = `artifacts/${appId}/users/${userId}/orders`;
+            const collectionPath = `artifacts/${appId}/orders`;
             const q = query(collection(db, collectionPath));
             
             // Set up real-time listener
@@ -1112,7 +1112,7 @@
                 console.log("Submitting orderToSave:", orderToSave);
 
                 // *** PRIVATE DATA PATH: Only accessible by the manager (authenticated user) ***
-                const collectionPath = `artifacts/${appId}/users/${userId}/orders`;
+                const collectionPath = `artifacts/${appId}/orders`;
                 
                 addDoc(collection(db, collectionPath), orderToSave).then(() => {
                      showMessage(
@@ -1140,7 +1140,7 @@
         async function toggleDelivered(orderId, delivered) {
           if (!db) return;
           try {
-            const ref = doc(db, `artifacts/${appId}/users/${userId}/orders/${orderId}`);
+            const ref = doc(db, `artifacts/${appId}/orders/${orderId}`);
             await setDoc(ref, { delivered }, { merge: true });
             console.log(`Order ${orderId} updated: delivered = ${delivered}`);
           } catch (e) {
