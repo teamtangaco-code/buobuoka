@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuoBuo Ka - Pre-Order System</title>
+    <!-- Load Tailwind CSS -->
+    <script src="config.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles and font configuration */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7; /* Light background */
+        }
+        .container-card {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            transition: all 0.2s ease-in-out;
+            background-color: #3b82f6; /* Blue 500 */
+            color: white;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* Blue 600 */
+            transform: translateY(-1px);
+        }
+        .design-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .design-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.3);
+        }
+        .design-card.selected {
+            border-color: #3b82f6; /* Blue 500 border */
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4); /* Focus ring effect */
+        }
+        /* Sticky Order Summary for better UX */
+        #order-summary-sticky {
+            position: sticky;
+            top: 2rem;
+        }
+        /* Dashboard styles */
+        .dashboard-table-header {
+            background-color: #eef2ff; /* Light blue background for header */
+            color: #374151; /* Darker text */
+        }
+        .dashboard-table-row:nth-child(even) {
+            background-color: #f9fafb; /* Lighter background for striped effect */
+        }
+        /* Dashboard Pin Gate Style */
+        .pin-input {
+            letter-spacing: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8 flex items-start justify-center">
+
+    <div id="app" class="w-full max-w-6xl bg-white rounded-xl container-card p-6 md:p-10 my-8">
+
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight">
+                BuoBuo Ka Pre-Order
+            </h1>
+            <h2 class="text-xl font-medium text-blue-600 mt-1">
+                A Product by Team A.N.G. A. Co.
+            </h2>
+            <div class="mt-4 flex justify-center space-x-4">
+                <button id="nav-order-builder" onclick="window.app.selectStep('mode_selection')" class="text-lg font-semibold px-4 py-2 rounded-lg transition-colors bg-blue-100 text-blue-800 hover:bg-blue-200">
+                    🛍️ Order Builder
+                </button>
+                <button id="nav-manager-dashboard" onclick="window.app.renderOrderDashboard()" class="text-lg font-semibold px-4 py-2 rounded-lg transition-colors text-gray-600 hover:bg-gray-100">
+                    📊 Manager Dashboard
+                </button>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div id="content-area">
+            <!-- Content will be injected here by JavaScript -->
+        </div>
+        
+        <p id="auth-info" class="text-xs text-center text-gray-400 mt-8">Authentication Status: Connecting to database...</p>
+
+        <!-- Submission Status/Modal -->
+        <div id="message-box" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-lg shadow-2xl max-w-sm w-full text-center">
+                <h3 id="message-title" class="text-2xl font-bold mb-3 text-gray-800"></h3>
+                <p id="message-text" class="text-gray-600 mb-6"></p>
+                <button id="message-button" class="btn-primary px-6 py-2 rounded-lg font-semibold"></button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="config.js"></script>
+    <!-- Firebase SDK and Application Logic -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, setLogLevel, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE AND APP CONFIGURATION (MAX DEFENSE AGAINST MOCK KEY) ---
+        let db = null;
+        let auth = null;
+        let userId = 'anon-user'; 
+        let dbStatus = 'connecting'; 
+        
+        // Global variables provided by the environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'buobuo-ka-orders';
+        const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let firebaseConfig = null;
+        
+        // --- CRITICAL CONFIGURATION PARSING BLOCK ---
+        // This block MUST succeed and provide a valid config, or the app will not initialize Firebase.
+        try {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = JSON.parse(__firebase_config);
+                
+                // CRITICAL CHECK: Ensure the key is not null or the forbidden mock key.
+                if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('mockKey') || firebaseConfig.apiKey.length < 10) {
+                    throw new Error("Parsed Firebase config is missing a valid API key (detected mock/invalid key).");
+                }
+                
+                console.log("SUCCESS: Using provided Firebase configuration.");
+                console.log("CONFIRMATION: API Key is present and appears valid (starts with: " + firebaseConfig.apiKey.substring(0, 10) + '...)');
+                
+            } else {
+                throw new Error("Environment variable __firebase_config is missing or empty.");
+            }
+        } catch (e) {
+            console.error("CRITICAL FIREBASE CONFIGURATION ERROR: Database initialization failed.", e);
+            dbStatus = 'config_missing';
+            
+            // Set the footer status immediately if parsing failed
+            window.onload = function() {
+                // Ensure auth status is updated even if initializeFirebase is skipped
+                window.app.setAuthStatus('config_missing');
+                window.app.renderModeSelection(); 
+            }
+        }
+        
+        // --- END CRITICAL CONFIGURATION PARSING BLOCK ---
+
+        // Lookup elements that are guaranteed to exist when the script loads since it is at the end of <body>
+        const authInfoEl = document.getElementById('auth-info');
+        const APP_CONTAINER = document.getElementById('content-area');
+        const MESSAGE_BOX = document.getElementById('message-box');
+        
+        // MANAGER GATE KEY: Use a simple PIN to restrict dashboard viewing
+        const MANAGER_KEY = "1234"; 
+
+        /**
+         * Updates the status message in the footer based on the connection state.
+         * @param {string} status The new status: 'ready', 'connecting', 'config_missing', 'auth_failed'
+         * @param {string} [message] Optional custom message for auth_failed
+         */
+        function setAuthStatus(status, message = '') {
+            dbStatus = status;
+            switch (status) {
+                case 'ready':
+                    authInfoEl.innerHTML = `<p class="text-green-600">✅ **Database Connected**. Manager ID (Used for private storage): <strong>${userId}</strong></p>`;
+                    // If dashboard is open, initiate data listening
+                    if (currentStep === 'dashboard' && document.getElementById('loading-indicator')) {
+                        listenForOrders();
+                    }
+                    break;
+                case 'config_missing':
+                    authInfoEl.innerHTML = `<p class="text-red-600">❌ **Database Initialization Failed**. **Firebase Config is missing or invalid**. Submissions disabled.</p>`;
+                    break;
+                case 'auth_failed':
+                    authInfoEl.innerHTML = `<p class="text-red-600">❌ **Database Offline**. Sign-in failed. Submissions disabled. Details: ${message}</p>`;
+                    break;
+                case 'connecting':
+                default:
+                    authInfoEl.innerHTML = `<p class="text-gray-400">Authentication Status: Connecting to database...</p>`;
+                    break;
+            }
+            // Re-render confirmation screen if currently on it to update the submit button state
+            if (currentStep === 'confirmation') {
+                renderConfirmation();
+            }
+        }
+
+
+        function initializeFirebase() {
+            // Check if configuration parsing failed above. If so, skip initialization.
+            if (dbStatus === 'config_missing' || !firebaseConfig) {
+                console.warn("Firebase initialization skipped due to missing or invalid configuration.");
+                return;
+            }
+
+            try {
+                // Initialize the app with the valid, parsed config
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('debug'); // Enable detailed logging
+
+                // 1. Set up Auth State Listener
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        setAuthStatus('ready'); // DB is ready once user is signed in
+                    } else {
+                        // This handles sign-out or failures from the sign-in attempts below.
+                        setAuthStatus('auth_failed', 'User not authenticated.');
+                    }
+                });
+                
+                // 2. Attempt sign-in using the provided token, or anonymously.
+                if (authToken) {
+                    signInWithCustomToken(auth, authToken).catch(e => {
+                         console.error("Firebase: Custom token sign-in failed. Falling back to anonymous. Error:", e);
+                         // If custom token fails, try the standard anonymous sign-in
+                         signInAnonymously(auth); 
+                    });
+                } else {
+                    // Fallback to anonymous sign-in if no custom token is available
+                    signInAnonymously(auth).catch(e => {
+                        console.error("Firebase: Anonymous sign-in failed. Error:", e);
+                        setAuthStatus('auth_failed', `Anonymous Sign-in Failed: ${e.message}`);
+                    });
+                }
+
+            } catch (e) {
+                console.error("Firebase initialization failed (Check console details):", e);
+                setAuthStatus('auth_failed', `Initialization Error: ${e.message}`);
+            }
+        }
+        
+        // --- APPLICATION CONSTANTS (Same as before) ---
+        const BASE_PRICES = {
+            '2D': 500.00,  // PHP
+            '3D': 1500.00  // PHP
+        };
+
+        const ADD_ONS = [
+            { id: 'delivery', name: 'Standard Delivery (Flat Rate)', price: 150.00, description: 'Flat rate for delivery within the region.' },
+            { id: 'custom_card', name: 'Customized Message Card', price: 50.00, description: 'A personalized card included with the order.' },
+            { id: 'ferry_lights', name: 'Fairy Lights Only', price: 100.00, description: 'Ambient LED fairy lights (battery not included).' },
+            { id: 'acrylic_box', name: 'Acrylic Display Box Only', price: 200.00, description: 'Premium, clear acrylic display box.' },
+            { id: 'combo', name: 'Fairy Lights & Acrylic Box Combo', price: 250.00, description: 'Both lights and the premium display box together.' }
+        ];
+
+        // --- IMAGE DATA (Same as before) ---
+        const PRESETS = {
+            '3D': [
+                { id: '3d-1', name: 'Geo-Prism Tower', imageUrl: 'placeholder/White Biofilm Disruption (before staining).jpeg' }, 
+                { id: '3d-2', name: 'Woven Vortex', imageUrl: 'https://placehold.co/200x200/10B981/FFFFFF/?text=Woven+Vortex' },
+                { id: '3d-3', name: 'Flora Bloom', imageUrl: 'https://placehold.co/200x200/F59E0B/FFFFFF/?text=Flora+Bloom' }, 
+                { id: '3d-4', name: 'Cyberpunk Grid', imageUrl: 'https://placehold.co/200x200/EC4899/FFFFFF/?text=Cyber+Grid' },
+                { id: '3d-5', name: 'Celestial Sphere', imageUrl: 'https://placehold.co/200x200/8B5CF6/FFFFFF/?text=Celestial' }, 
+                { id: '3d-6', name: 'Retro Robot', imageUrl: 'https://placehold.co/200x200/6366F1/FFFFFF/?text=Robot' },
+                { id: '3d-7', name: 'Abstract Flow', imageUrl: 'https://placehold.co/200x200/D97706/FFFFFF/?text=Abstract' }, 
+                { id: '3d-8', name: 'Mountain Peak', imageUrl: 'https://placehold.co/200x200/059669/FFFFFF/?text=Mountain' },
+                { id: '3d-9', name: 'Spiral Stair', imageUrl: 'https://placehold.co/200x200/9333EA/FFFFFF/?text=Spiral' }, 
+                { id: '3d-10', name: 'Pixel Cube', imageUrl: 'https://placehold.co/200x200/4F46E5/FFFFFF/?text=Pixel+Cube' },
+            ],
+            '2D': [
+                { id: '2d-A', name: 'Geometric Pattern', imageUrl: 'https://placehold.co/200x200/EF4444/FFFFFF/?text=Geometric' }, 
+                { id: '2d-B', name: 'Minimalist Line Art', imageUrl: 'https://placehold.co/200x200/6B7280/FFFFFF/?text=Line+Art' },
+                { id: '2d-C', name: 'Pop Art Portrait', imageUrl: 'https://placehold.co/200x200/EAB308/FFFFFF/?text=Pop+Art' }, 
+                { id: '2d-D', name: 'Watercolor Splatter', imageUrl: 'https://placehold.co/200x200/22C55E/FFFFFF/?text=Watercolor' },
+                { id: '2d-E', name: 'Vintage Poster Style', imageUrl: 'https://placehold.co/200x200/84CC16/FFFFFF/?text=Vintage' },
+            ]
+        };
+
+        // --- APPLICATION STATE (Same as before) ---
+        let currentStep = 'mode_selection';
+        let orderData = { 
+            items: [], 
+            addOns: {}, 
+            name: '', 
+            fbLink: '', 
+            gradeSection: '', 
+            email: '', 
+            phone: '', 
+            address: '', 
+            customization: { dimension: null, photoFileName: null, price: 0 }, 
+            calculations: { subtotal: 0, discount: 0, addOnTotal: 0, finalTotal: 0 }, 
+            timestamp: new Date().toISOString() 
+        };
+        window.orderData = orderData;
+
+        
+        // --- UTILITY FUNCTIONS (Same as before) ---
+        function formatCurrency(amount) {
+            return `₱${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        
+        function formatDate(isoString) {
+             try {
+                const date = new Date(isoString);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' });
+            } catch (e) {
+                return 'N/A';
+            }
+        }
+        
+        // --- CORE FUNCTIONS (Same as before) ---
+        
+        function calculateOrder() {
+            let subtotal = 0;
+            let productCount = 0;
+            let highestProductPrice = 0;
+
+            orderData.items.forEach(item => {
+                const itemPrice = item.price * item.quantity;
+                subtotal += itemPrice;
+                productCount += item.quantity;
+                if (item.price > highestProductPrice) {
+                    highestProductPrice = item.price;
+                }
+            });
+
+            let discount = 0;
+            if (productCount >= 3) {
+                // Apply 10% discount on the highest priced single item
+                discount = highestProductPrice * 0.10;
+            }
+
+            let addOnTotal = 0;
+            Object.keys(orderData.addOns).forEach(id => {
+                const addon = ADD_ONS.find(a => a.id === id);
+                if (addon) addOnTotal += addon.price;
+            });
+
+            const finalTotal = subtotal - discount + addOnTotal;
+
+            orderData.calculations = {
+                subtotal: parseFloat(subtotal.toFixed(2)),
+                discount: parseFloat(discount.toFixed(2)),
+                addOnTotal: parseFloat(addOnTotal.toFixed(2)),
+                finalTotal: parseFloat(finalTotal.toFixed(2))
+            };
+
+            updateSummaryDisplay();
+        }
+
+        function updateSummaryDisplay() {
+            const summaryDiv = document.getElementById('order-summary-container');
+            if (!summaryDiv) return;
+
+            const productCount = orderData.items.reduce((sum, item) => sum + item.quantity, 0);
+            const discountApplies = orderData.calculations.discount > 0;
+            const discountText = discountApplies ? `<span class="text-green-600 font-semibold">-₱${orderData.calculations.discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Faction Promo)</span>` : `<span class="text-gray-500">None</span>`;
+
+            let itemsList = orderData.items.length === 0 ? '<p class="text-gray-500">No products added yet.</p>' :
+                orderData.items.map((item, index) => `
+                    <div class="flex justify-between items-center text-sm border-b border-gray-100 py-1 last:border-b-0">
+                        <div class="flex-grow truncate pr-2">
+                             <span class="font-bold text-gray-800">${item.quantity}x ${item.dimension} ${item.type}</span>
+                             <p class="text-xs text-gray-500 truncate">${item.name}</p>
+                        </div>
+                        <div class="flex-shrink-0 flex items-center space-x-2">
+                            <span class="font-medium text-gray-700">${formatCurrency(item.price * item.quantity)}</span>
+                            <button onclick="window.app.removeItem(${index})" class="text-red-400 hover:text-red-600 text-lg p-1 transition-colors" title="Remove Item">&times;</button>
+                        </div>
+                    </div>
+                `).join('');
+
+            let addOnsList = Object.keys(orderData.addOns).length === 0 ? '<p class="text-gray-500 text-xs">No add-ons selected.</p>' :
+                ADD_ONS.filter(addon => orderData.addOns[addon.id]).map(addon => `
+                    <div class="flex justify-between text-xs text-gray-600">
+                        <span class="ml-2">${addon.name}</span>
+                        <span>${formatCurrency(addon.price)}</span>
+                    </div>
+                `).join('');
+
+            summaryDiv.innerHTML = `
+                <div id="order-summary-sticky" class="p-4 bg-gray-50 rounded-xl shadow-lg border border-gray-100">
+                    <h4 class="text-lg font-bold mb-3 text-blue-700 border-b border-blue-200 pb-2">🛒 Current Order Summary</h4>
+                    <div class="mb-3 space-y-2">
+                        <p class="font-semibold text-sm mb-1 text-gray-700">Products (${productCount} Total):</p>
+                        <div class="pl-0 space-y-1">${itemsList}</div>
+                    </div>
+                    <div class="mb-4 border-t pt-3 border-gray-200">
+                         <p class="font-semibold text-sm mb-1 text-gray-700">Add-Ons:</p>
+                         <div class="pl-2 space-y-1">${addOnsList}</div>
+                    </div>
+                    <div class="text-sm font-medium space-y-1 border-t pt-3 border-gray-200">
+                        <div class="flex justify-between"><span>Subtotal (Products):</span> <span>${formatCurrency(orderData.calculations.subtotal)}</span></div>
+                        <div class="flex justify-between"><span>Add-ons Total:</span> <span>${formatCurrency(orderData.calculations.addOnTotal)}</span></div>
+                        <div class="flex justify-between"><span>Discount:</span> ${discountText}</div>
+                    </div>
+                    <div class="flex justify-between text-xl font-extrabold mt-3 pt-3 border-t-2 border-blue-500">
+                        <span>Total:</span>
+                        <span>${formatCurrency(orderData.calculations.finalTotal)}</span>
+                    </div>
+                    ${productCount >= 3 ? `<p class="text-center text-xs mt-2 text-green-700 bg-green-100 p-1 rounded-md">✅ Faction Promo Applied!</p>` : ''}
+                </div>
+            `;
+            updateNextButtonState();
+        }
+        
+        function removeItem(index) {
+            if (currentStep !== 'mode_selection') {
+                return showMessage('Cannot Edit', 'Please return to Step 1: Build Your Order to make changes.', 'continue');
+            }
+            orderData.items.splice(index, 1);
+            calculateOrder();
+            clearSelectionAreaPrompt();
+        }
+
+        function clearSelectionAreaPrompt() {
+            const selectionArea = document.getElementById('selection-area');
+            if (selectionArea) {
+                // If there are no items, show the main prompt again
+                if (orderData.items.length === 0) {
+                     selectionArea.innerHTML = '<p class="text-center text-gray-500 pt-10">Select an option above to begin configuring your item.</p>';
+                } else {
+                     selectionArea.innerHTML = '<p class="text-center text-gray-500 pt-10">Select an option above to add more items, or proceed to add-ons when ready.</p>';
+                }
+            }
+        }
+        
+        function updateNavStyles(activeId) {
+            document.getElementById('nav-order-builder').classList.remove('bg-blue-100', 'text-blue-800', 'hover:bg-blue-200');
+            document.getElementById('nav-order-builder').classList.add('text-gray-600', 'hover:bg-gray-100');
+            document.getElementById('nav-manager-dashboard').classList.remove('bg-blue-100', 'text-blue-800', 'hover:bg-blue-200');
+            document.getElementById('nav-manager-dashboard').classList.add('text-gray-600', 'hover:bg-gray-100');
+
+            if (document.getElementById(activeId)) {
+                document.getElementById(activeId).classList.add('bg-blue-100', 'text-blue-800', 'hover:bg-blue-200');
+                document.getElementById(activeId).classList.remove('text-gray-600', 'hover:bg-gray-100');
+            }
+        }
+        
+        function updateNextButtonState() {
+            const nextButton = document.getElementById('next-to-addons');
+            if (nextButton) {
+                const enable = orderData.items.length > 0;
+                nextButton.disabled = !enable;
+                nextButton.textContent = enable ? 'Proceed to Add-ons →' : 'Add at least one item to proceed';
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // STEP 1: MODE SELECTION & PRESET/CUSTOM RENDERING
+        // ---------------------------------------------------------------------
+
+        function renderModeSelection() {
+            updateNavStyles('nav-order-builder');
+            calculateOrder(); // Renders the summary container on the right
+            APP_CONTAINER.innerHTML = `
+                <div class="grid grid-cols-1 lg:col-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <h3 class="text-2xl font-semibold mb-8 text-gray-800">Step 1: Build Your Order</h3>
+                        <div class="flex flex-col sm:flex-row gap-4 mb-8">
+                            <button onclick="window.app.selectMode('preset', '3D')" class="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl hover:bg-yellow-100 transition-all shadow-md flex-1 min-w-[150px]">
+                                <p class="text-3xl mb-1">🧊</p>
+                                <p class="text-xl font-bold text-gray-800">3D Pre-set</p>
+                                <p class="text-sm text-gray-500">${formatCurrency(BASE_PRICES['3D'])}</p>
+                            </button>
+                            <button onclick="window.app.selectMode('preset', '2D')" class="p-6 bg-red-50 border-2 border-red-200 rounded-xl hover:bg-red-100 transition-all shadow-md flex-1 min-w-[150px]">
+                                <p class="text-3xl mb-1">🖼️</p>
+                                <p class="text-xl font-bold text-gray-800">2D Pre-set</p>
+                                <p class="text-sm text-gray-500">${formatCurrency(BASE_PRICES['2D'])}</p>
+                            </button>
+                            <button onclick="window.app.selectMode('custom', 'any')" class="p-6 bg-purple-50 border-2 border-purple-200 rounded-xl hover:bg-purple-100 transition-all shadow-md flex-1 min-w-[150px]">
+                                <p class="text-3xl mb-1">✨</p>
+                                <p class="text-xl font-bold text-gray-800">Custom Order</p>
+                                <p class="text-sm text-gray-500">Choose 2D/3D</p>
+                            </button>
+                        </div>
+                        <div id="selection-area" class="bg-gray-100 p-6 rounded-xl min-h-[400px]">
+                            <!-- Content injected by selectMode or preset/custom renderers -->
+                        </div>
+                    </div>
+                    <div class="lg:col-span-1">
+                        <div id="order-summary-container"></div>
+                        <button id="next-to-addons" onclick="window.app.selectStep('addons')" class="mt-6 btn-primary px-6 py-3 rounded-lg font-semibold w-full text-lg disabled:opacity-50" disabled>
+                            Add at least one item to proceed
+                        </button>
+                    </div>
+                </div>
+            `;
+            currentStep = 'mode_selection';
+            // Re-render summary after innerHTML replacement
+            updateSummaryDisplay(); 
+            clearSelectionAreaPrompt(); 
+        }
+
+        function selectMode(mode, dimension) {
+            orderData.customization = { dimension: dimension, photoFileName: null, price: BASE_PRICES[dimension] || 0 };
+            
+            if (mode === 'preset') {
+                renderPresetSelection(dimension);
+            } else if (mode === 'custom') {
+                renderCustomization();
+            }
+        }
+
+        function renderPresetSelection(dimension) {
+            const selectionArea = document.getElementById('selection-area');
+            const designs = PRESETS[dimension];
+            const price = BASE_PRICES[dimension];
+
+            selectionArea.innerHTML = `
+                <h4 class="text-xl font-bold text-gray-800 mb-4">${dimension} Pre-set Designs (${formatCurrency(price)})</h4>
+                <p class="text-sm text-gray-600 mb-6">Select a pre-designed pattern or image to engrave. Click the "Add to Order" button to finalize the quantity.</p>
+                
+                <div id="design-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    ${designs.map(design => `
+                        <div id="design-${design.id}" onclick="window.app.selectDesign('${design.id}', '${dimension}')" 
+                             class="design-card p-2 rounded-xl bg-white shadow-md cursor-pointer hover:shadow-lg text-center">
+                            <img src="${design.imageUrl}" alt="${design.name}" class="w-full h-auto rounded-md mb-2 object-cover" onerror="this.onerror=null; this.src='https://placehold.co/200x200/5B21B6/FFFFFF?text=${dimension}'">
+                            <p class="text-sm font-semibold">${design.name}</p>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div id="preset-controls" class="mt-8 pt-4 border-t border-gray-300 hidden">
+                    <p class="text-lg font-bold mb-3 text-blue-700">Add Selected Item to Order</p>
+                    <div class="flex items-center space-x-4">
+                        <label for="quantity-preset" class="font-medium">Quantity:</label>
+                        <input type="number" id="quantity-preset" value="1" min="1" oninput="window.app.validateQuantity(this)"
+                               class="w-20 p-2 border border-gray-300 rounded-lg text-center focus:ring-blue-500 focus:border-blue-500">
+                        <button id="add-preset-btn" onclick="window.app.addToOrder('preset')" class="btn-primary px-6 py-2 rounded-lg font-semibold" disabled>
+                            Add to Order
+                        </button>
+                    </div>
+                </div>
+            `;
+            // Re-apply selection if one was previously made for this dimension
+            if (orderData.customization.designId) {
+                selectDesign(orderData.customization.designId, dimension);
+            }
+        }
+
+        function selectDesign(designId, dimension) {
+            orderData.customization.designId = designId;
+            
+            // Highlight the selected card
+            document.querySelectorAll('.design-card').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`design-${designId}`).classList.add('selected');
+            
+            // Show controls and enable button
+            document.getElementById('preset-controls').classList.remove('hidden');
+            document.getElementById('add-preset-btn').disabled = false;
+        }
+
+        function renderCustomization() {
+            const selectionArea = document.getElementById('selection-area');
+            const dimension = orderData.customization.dimension;
+            const price = BASE_PRICES[dimension === '3D' ? '3D' : '2D'];
+
+            selectionArea.innerHTML = `
+                <h4 class="text-xl font-bold text-gray-800 mb-4">Custom Image Upload (${formatCurrency(price)})</h4>
+                <p class="text-sm text-gray-600 mb-6">Upload your own design or photo. We accept high-resolution JPEG or PNG files.</p>
+                
+                <div class="space-y-4">
+                    <p class="text-sm text-gray-600 mb-2">
+                       Please upload your design to Google Drive and paste the shareable link here. 
+                       Make sure the file is set to "Anyone with the link can view".
+                    </p>
+
+                    <label class="block text-sm font-medium text-gray-700">Select Dimension:</label>
+                    <select id="custom-dimension" onchange="window.app.updateCustomization(this.value)" 
+                            class="block w-full md:w-1/2 p-3 border border-gray-300 bg-white rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="2D" ${dimension === '2D' ? 'selected' : ''}>2D Engraving (${formatCurrency(BASE_PRICES['2D'])})</option>
+                        <option value="3D" ${dimension === '3D' ? 'selected' : ''}>3D Engraving (${formatCurrency(BASE_PRICES['3D'])})</option>
+                    </select>
+
+                    <label class="block text-sm font-medium text-gray-700 pt-4">Google Drive Link to Your Design:</label>
+                    <input type="url" id="custom-file-link" placeholder="https://drive.google.com/..." 
+                        oninput="window.app.handleCustomLinkInput(this.value)"
+                        class="mt-1 block w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+
+                    <p id="file-status" class="text-sm italic text-gray-500">No link provided.</p>
+
+                </div>
+
+                <div id="custom-controls" class="mt-8 pt-4 border-t border-gray-300">
+                    <p class="text-lg font-bold mb-3 text-blue-700">Add Custom Item to Order</p>
+                    <div class="flex items-center space-x-4">
+                        <label for="quantity-custom" class="font-medium">Quantity:</label>
+                        <input type="number" id="quantity-custom" value="1" min="1" oninput="window.app.validateQuantity(this)"
+                               class="w-20 p-2 border border-gray-300 rounded-lg text-center focus:ring-blue-500 focus:border-blue-500">
+                        <button id="add-custom-btn" onclick="window.app.addToOrder('custom')" class="btn-primary px-6 py-2 rounded-lg font-semibold" disabled>
+                            Add to Order
+                        </button>
+                    </div>
+                </div>
+            `;
+            // Initialize custom state
+            document.getElementById('custom-dimension').value = dimension;
+            updateCustomization(dimension);
+            // Re-display file status if a file was selected before
+            if (orderData.customization.photoFileName) {
+                document.getElementById('file-status').textContent = `Selected: ${orderData.customization.photoFileName}`;
+                document.getElementById('add-custom-btn').disabled = false;
+            }
+        }
+
+        function updateCustomization(dimension) {
+            const newPrice = BASE_PRICES[dimension];
+            orderData.customization.dimension = dimension;
+            orderData.customization.price = newPrice;
+            
+            // Update the display text of the select element without re-rendering the whole form
+            const selectEl = document.getElementById('custom-dimension');
+            if (selectEl) {
+                selectEl.options[0].textContent = `2D Engraving (${formatCurrency(BASE_PRICES['2D'])})`;
+                selectEl.options[1].textContent = `3D Engraving (${formatCurrency(BASE_PRICES['3D'])})`;
+            }
+            
+            // Update header price
+            const header = document.getElementById('selection-area').querySelector('h4');
+            if(header) {
+                header.textContent = `Custom Image Upload (${formatCurrency(newPrice)})`;
+            }
+        }
+
+        function handleCustomLinkInput(link) {
+            const fileStatusEl = document.getElementById('file-status');
+            const addButton = document.getElementById('add-custom-btn');
+
+            if (link && link.startsWith("http")) {
+                orderData.customization.photoFileName = link; // store the Drive link instead of file
+                fileStatusEl.textContent = `Link provided: ${link}`;
+                fileStatusEl.classList.remove('text-red-500');
+                fileStatusEl.classList.add('text-green-600');
+                addButton.disabled = false;
+            } else {
+                orderData.customization.photoFileName = null;
+                fileStatusEl.textContent = "Please enter a valid Google Drive link.";
+                fileStatusEl.classList.remove('text-green-600');
+                fileStatusEl.classList.add('text-red-500');
+                addButton.disabled = true;
+            }
+        }
+
+        
+        function validateQuantity(input) {
+            if (input.value < 1) {
+                input.value = 1;
+            }
+        }
+        
+        function addToOrder(type) {
+            let item = {};
+            let quantity = 1;
+
+            if (type === 'preset') {
+                const designId = orderData.customization.designId;
+                const dimension = orderData.customization.dimension;
+                const design = PRESETS[dimension].find(d => d.id === designId);
+                quantity = parseInt(document.getElementById('quantity-preset').value) || 1;
+                
+                if (!design) return showMessage('Error', 'Please select a design.', 'continue');
+
+                item = {
+                    name: `${design.name} (Preset)`,
+                    designId: designId,
+                    dimension: dimension,
+                    type: 'Preset',
+                    price: BASE_PRICES[dimension],
+                    quantity: quantity
+                };
+
+            } else if (type === 'custom') {
+                const dimension = orderData.customization.dimension;
+                const photoFileName = orderData.customization.photoFileName;
+                quantity = parseInt(document.getElementById('quantity-custom').value) || 1;
+                
+                if (!photoFileName) return showMessage('Error', 'Please upload a custom design file.', 'continue');
+
+                item = {
+                    name: `Custom Design: ${photoFileName}`,
+                    designId: 'custom',
+                    dimension: dimension,
+                    type: 'Custom',
+                    price: BASE_PRICES[dimension],
+                    quantity: quantity
+                };
+            }
+
+            orderData.items.push(item);
+            calculateOrder();
+            // Reset state and return to main selection view
+            selectMode('preset', '3D'); 
+            clearSelectionAreaPrompt();
+        }
+
+
+        // ---------------------------------------------------------------------
+        // STEP 2: ADD-ONS
+        // ---------------------------------------------------------------------
+
+        function renderAddOnsSelection() {
+            updateNavStyles('nav-order-builder');
+            calculateOrder();
+            
+            APP_CONTAINER.innerHTML = `
+                <div class="grid grid-cols-1 lg:col-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <h3 class="text-2xl font-semibold mb-8 text-gray-800">Step 2: Choose Your Add-ons</h3>
+                        <p class="text-gray-600 mb-6">Enhance your BuoBuo Ka with optional add-ons like delivery, display boxes, or lights.</p>
+                        
+                        <div class="space-y-4">
+                            ${ADD_ONS.map(addon => `
+                                <div class="bg-white p-4 rounded-xl shadow-md border ${orderData.addOns[addon.id] ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} transition-all flex items-start space-x-4">
+                                    <input type="checkbox" id="addon-${addon.id}" data-addon-id="${addon.id}" onchange="window.app.updateAddOns(this)" 
+                                           ${orderData.addOns[addon.id] ? 'checked' : ''}
+                                           class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label for="addon-${addon.id}" class="flex-grow">
+                                        <div class="font-bold text-lg text-gray-800">${addon.name}</div>
+                                        <p class="text-sm text-gray-500">${addon.description}</p>
+                                    </label>
+                                    <span class="text-lg font-extrabold text-blue-600 flex-shrink-0">${formatCurrency(addon.price)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="lg:col-span-1">
+                        <div id="order-summary-container"></div>
+                        <button onclick="window.app.goBack()" class="mt-6 text-gray-500 hover:text-gray-800 transition-colors block w-full text-center">← Back to Edit Order</button>
+                        <button onclick="window.app.selectStep('details')" class="mt-4 btn-primary px-6 py-3 rounded-lg font-semibold w-full text-lg">
+                            Proceed to Contact Details →
+                        </button>
+                    </div>
+                </div>
+            `;
+            currentStep = 'addons';
+            updateSummaryDisplay();
+        }
+
+        function updateAddOns(checkbox) {
+            const id = checkbox.dataset.addonId;
+            orderData.addOns[id] = checkbox.checked;
+
+            // Simple logic to handle combo exclusivity (optional, but good practice)
+            if (id === 'combo' && checkbox.checked) {
+                // If combo is checked, uncheck individual components
+                orderData.addOns['ferry_lights'] = false;
+                orderData.addOns['acrylic_box'] = false;
+            } else if ((id === 'ferry_lights' || id === 'acrylic_box') && checkbox.checked) {
+                // If an individual component is checked, uncheck combo
+                orderData.addOns['combo'] = false;
+            }
+            
+            // Re-render the add-ons section to update checkboxes and recalculate totals
+            renderAddOnsSelection();
+        }
+
+        // ---------------------------------------------------------------------
+        // STEP 3: DETAILS FORM
+        // ---------------------------------------------------------------------
+
+        function renderDetailsForm() {
+            updateNavStyles('nav-order-builder');
+            calculateOrder();
+
+            APP_CONTAINER.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <h3 class="text-2xl font-semibold mb-8 text-gray-800">Step 3: Contact & Delivery Details</h3>
+                        <p class="text-gray-600 mb-6">We need your details to process the order and coordinate delivery.</p>
+                        
+                        <form id="details-form" onsubmit="event.preventDefault(); window.app.selectStep('confirmation')">
+                            <div class="space-y-6 bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block mb-2 font-semibold">Name</label>
+                                        <input type="text" id="name" required
+                                           class="w-full border rounded p-2 mb-4"
+                                           oninput="orderData.name=this.value"
+                                            onchange="orderData.name=this.value">
+                                    </div>
+                                    <div>
+                                        <label class="block mb-2 font-semibold">FB Profile Link</label>
+                                        <input type="url" id="fbLink" required
+                                           class="w-full border rounded p-2 mb-4"
+                                           oninput="orderData.fbLink=this.value"
+                                           onchange="orderData.fbLink=this.value">
+
+                                   </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label class="block mb-2 font-semibold">Grade & Section</label>
+                                    <input type="text" id="gradeSection" required
+                                       class="w-full border rounded p-2 mb-4"
+                                       oninput="orderData.gradeSection=this.value"
+                                       onchange="orderData.gradeSection=this.value">
+                                  </div>
+                                </div>
+                            </div>
+                            <button type="submit" 
+                                class="mt-6 btn-primary px-6 py-3 rounded-lg font-semibold w-full text-lg">
+                            Review & Confirm Order →
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="lg:col-span-1">
+                        <div id="order-summary-container"></div>
+                        <button onclick="window.app.goBack()" class="mt-6 text-gray-500 hover:text-gray-800 transition-colors block w-full text-center">← Back to Edit Add-ons</button>
+                    </div>
+                </div>
+            `;
+            currentStep = 'details';
+            updateSummaryDisplay();
+        }
+
+        // ---------------------------------------------------------------------
+        // STEP 4: CONFIRMATION
+        // ---------------------------------------------------------------------
+        function renderConfirmation() {
+            calculateOrder();
+            const productCount = orderData.items.reduce((sum, item) => sum + item.quantity, 0);
+
+            // Determine if the submit button should be disabled based on dbStatus
+            const submitDisabled = dbStatus !== 'ready';
+            const submitText = dbStatus === 'ready' ? 'Submit Pre-Order and Lock In Price!' : 
+                               dbStatus === 'config_missing' ? 'Database Offline: Config Missing (Cannot Submit)' : 
+                               'Database Offline: Connection Error (Cannot Submit)';
+
+            APP_CONTAINER.innerHTML = `
+                <h3 class="text-2xl font-semibold text-center mb-8 text-gray-800">Step 4: Confirm Your BuoBuo Ka Pre-Order</h3>
+                <div class="max-w-3xl mx-auto">
+                    <div class="bg-blue-50 p-6 rounded-xl space-y-4 mb-8 border border-blue-200">
+                        <p class="text-lg font-bold text-blue-800 border-b pb-2 border-blue-200">Order Summary:</p>
+                        <div class="space-y-2">
+                            <p class="font-bold text-gray-700">Products (${productCount} items):</p>
+                            <ul class="pl-4 space-y-1 text-sm text-gray-700">
+                                ${orderData.items.map(item => `
+                                    <li class="flex justify-between">
+                                        <span>${item.quantity}x ${item.name} (${item.dimension} ${item.type})</span>
+                                        <span>${formatCurrency(item.price * item.quantity)}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ${Object.keys(orderData.addOns).length > 0 ? `
+                            <div class="space-y-2 pt-4 border-t border-blue-200">
+                                <p class="font-bold text-gray-700">Add-ons:</p>
+                                <ul class="pl-4 space-y-1 text-sm text-gray-700">
+                                    ${ADD_ONS.filter(a => orderData.addOns[a.id]).map(a => `
+                                        <li class="flex justify-between">
+                                            <span>${a.name}</span>
+                                            <span>${formatCurrency(a.price)}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="pt-4 border-t border-blue-200 font-bold text-lg flex justify-between">
+                            <span>Final Total:</span>
+                            <span class="text-blue-600">${formatCurrency(orderData.calculations.finalTotal)}</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-6 rounded-xl space-y-4 mb-8 border">
+                        <p class="text-lg font-bold">Contact & Order Details:</p>
+                        <p><strong>Name:</strong> ${orderData.name}</p>
+                        <p><strong>FB Profile:</strong> <a href="${orderData.fbLink}" target="_blank" class="text-blue-600">${orderData.fbLink}</a></p>
+                        <p><strong>Grade & Section:</strong> ${orderData.gradeSection}</p>
+                    </div>
+
+                    <button onclick="window.app.submitOrder()" class="btn-primary px-6 py-4 rounded-lg font-bold w-full text-xl shadow-lg hover:shadow-xl disabled:opacity-50" ${submitDisabled ? 'disabled' : ''}>
+                        ${submitText}
+                    </button>
+                    <button onclick="window.app.goBack()" class="mt-4 text-gray-500 hover:text-gray-800 transition-colors block text-center mx-auto">← Back to Edit Details</button>
+                </div>
+            `;
+            currentStep = 'confirmation';
+        }
+
+        // ---------------------------------------------------------------------
+        // DASHBOARD FUNCTIONS
+        // ---------------------------------------------------------------------
+
+        function renderOrderDashboard() {
+            updateNavStyles('nav-manager-dashboard');
+            currentStep = 'dashboard_gated';
+            
+            // Unsubscribe from order listener if moving away from a previous dashboard view
+             if (unsubscribeOrders) {
+                unsubscribeOrders(); 
+                unsubscribeOrders = null;
+            }
+
+            APP_CONTAINER.innerHTML = `
+                <h3 class="text-2xl font-semibold mb-6 text-gray-800 text-center">📊 Manager Dashboard Access</h3>
+                <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                    <p class="text-gray-700 mb-4 text-center">Enter the Manager Key (PIN: **${MANAGER_KEY}**) to view private orders.</p>
+                    <div class="flex flex-col space-y-4">
+                        <input type="password" id="manager-key-input" maxlength="4" placeholder="••••"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4);"
+                               class="w-full text-3xl pin-input rounded-lg border-2 border-gray-300 p-3 focus:ring-blue-500 focus:border-blue-500">
+                        <button onclick="window.app.authenticateDashboard()" class="btn-primary px-6 py-3 rounded-lg font-semibold w-full">
+                            Access Dashboard
+                        </button>
+                    </div>
+                    <p id="dashboard-status" class="mt-4 text-sm text-center text-red-600"></p>
+                </div>
+            `;
+        }
+
+        function authenticateDashboard() {
+            const keyInput = document.getElementById('manager-key-input');
+            const statusEl = document.getElementById('dashboard-status');
+            if (keyInput.value === MANAGER_KEY) {
+                statusEl.textContent = "";
+                renderOrderDashboardContent();
+            } else {
+                statusEl.textContent = "Invalid Manager Key. Access Denied.";
+            }
+        }
+
+        function renderOrderDashboardContent() {
+            currentStep = 'dashboard';
+            let statusMessage = '';
+            
+            if (dbStatus === 'ready') {
+                statusMessage = 'Waiting for real-time orders...';
+            } else {
+                statusMessage = 'Database is currently disconnected due to an authentication error. Cannot load real-time order data.';
+            }
+
+            APP_CONTAINER.innerHTML = `
+                <h3 class="text-2xl font-semibold mb-6 text-gray-800 text-center">📊 Real-Time Order Dashboard (Manager View)</h3>
+                <div class="bg-orange-100 p-3 rounded-lg mb-4 text-sm text-orange-800">
+                    <strong>Note:</strong> Orders are saved privately to: <code>artifacts/${appId}/users/${userId}/orders</code>
+                </div>
+                <div id="dashboard-content" class="bg-white rounded-xl shadow-inner p-4 overflow-x-auto min-h-[300px]">
+                    <div class="text-center py-10 text-gray-500" id="loading-indicator">${statusMessage}</div>
+                </div>
+            `;
+            
+            if (dbStatus === 'ready') {
+                listenForOrders();
+            }
+        }
+        
+        let unsubscribeOrders = null; // Holds the real-time listener function
+        
+        function listenForOrders() {
+            if (unsubscribeOrders) {
+                unsubscribeOrders(); // Clean up previous listener if it exists
+            }
+            
+            if (dbStatus !== 'ready' || !db) {
+                console.warn("Attempted to listen for orders but DB is not ready.");
+                return;
+            }
+            
+            // *** PRIVATE DATA PATH ***
+            const collectionPath = `artifacts/${appId}/users/${userId}/orders`;
+            const q = query(collection(db, collectionPath));
+            
+            // Set up real-time listener
+            unsubscribeOrders = onSnapshot(q, (snapshot) => {
+                const orders = [];
+                snapshot.forEach((doc) => {
+                    orders.push({ id: doc.id, ...doc.data() });
+                });
+                // Sort by timestamp descending (newest first)
+                orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                displayOrders(orders);
+            }, (error) => {
+                 console.error("Error fetching real-time orders:", error);
+                 document.getElementById('dashboard-content').innerHTML = `<div class="text-center py-10 text-red-500">Error loading orders: ${error.message}. Check Firebase rules.</div>`;
+            });
+        }
+        
+        function displayOrders(orders) {
+            const dashboardContent = document.getElementById('dashboard-content');
+            
+            if (orders.length === 0) {
+                 dashboardContent.innerHTML = '<div class="text-center py-10 text-gray-500">No orders have been submitted yet.</div>';
+                 return;
+            }
+            
+            const tableHtml = `
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="dashboard-table-header sticky top-0">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg">ID / Name</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Items</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Add-ons</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider">Total</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider rounded-tr-lg">Delivered</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${orders.map(order => `
+                            <tr class="dashboard-table-row">
+                                <td class="px-3 py-4 text-sm text-gray-900 font-semibold">
+                                    ${order.name && order.name.trim() !== "" ? order.name : "(No Name Provided)"}
+                                    <div class="text-xs text-gray-500">ID: ${order.id}</div>
+                                    ${order.gradeSection ? `<div class="text-xs text-gray-500">Grade: ${order.gradeSection}</div>` : ""}
+                                    ${order.fbLink ? `<div class="text-xs"><a href="${order.fbLink}" target="_blank" class="text-blue-600 underline">FB</a></div>` : ""}
+                                </td>
+
+
+                                <td class="px-3 py-4 text-xs text-gray-700">
+                                    <ul class="list-disc list-inside space-y-0.5">
+                                        ${order.items.map(item => `
+                                            <li>
+                                                ${item.quantity}x ${item.dimension} ${item.type} 
+                                                (${item.name.includes("http") ? `<a href="${item.name.replace("Custom Design: ", "")}" target="_blank" class="text-blue-600 underline">View Design</a>` : item.name.split('(')[0].trim()})
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </td>
+                                <td class="px-3 py-4 text-xs text-gray-700">
+                                    ${Object.keys(order.addOns).length > 0 ? Object.keys(order.addOns).map(id => ADD_ONS.find(a => a.id === id)?.name).join(', ') : 'None'}
+                                </td>
+                                <td class="px-3 py-4 text-sm font-bold text-right text-blue-600">
+                                    ${formatCurrency(order.calculations.finalTotal)}
+                                </td>
+                                <td class="px-3 py-4 text-xs text-gray-500">
+                                    ${formatDate(order.timestamp)}
+                                </td>
+                                <td class="px-3 py-4 text-center">
+                                    <input type="checkbox" ${order.delivered ? "checked" : ""} 
+                                        onchange="window.app.toggleDelivered('${order.id}', this.checked)">
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            dashboardContent.innerHTML = tableHtml;
+        }
+
+        // ---------------------------------------------------------------------
+        // NAVIGATION & MODAL FUNCTIONS
+        // ---------------------------------------------------------------------
+
+        function selectStep(step) {
+            if (step === 'mode_selection') renderModeSelection();
+            else if (step === 'addons') renderAddOnsSelection();
+            else if (step === 'details') renderDetailsForm();
+            else if (step === 'confirmation') renderConfirmation();
+        }
+
+        function goBack() {
+             switch (currentStep) {
+                case 'addons':
+                    selectStep('mode_selection');
+                    break;
+                case 'details':
+                    selectStep('addons');
+                    break;
+                case 'confirmation':
+                    selectStep('details');
+                    break;
+            }
+        }
+
+        function showMessage(title, text, buttonText) {
+            document.getElementById('message-title').textContent = title;
+            document.getElementById('message-text').innerHTML = text;
+            document.getElementById('message-button').textContent = buttonText;
+            document.getElementById('message-button').onclick = hideMessage;
+            MESSAGE_BOX.classList.remove('hidden');
+            MESSAGE_BOX.classList.add('flex');
+        }
+
+        function hideMessage() {
+            MESSAGE_BOX.classList.add('hidden');
+            MESSAGE_BOX.classList.remove('flex');
+        }
+
+
+        // ---------------------------------------------------------------------
+        // SUBMISSION
+        // ---------------------------------------------------------------------
+        
+        function submitOrder() {
+            if (dbStatus !== 'ready' || !db) {
+                return showMessage('Database Offline', 'Cannot submit order. The database connection failed to fully authenticate. Please check the status message at the bottom of the page.', 'continue');
+            }
+            
+            try {
+                calculateOrder();
+                
+                const orderToSave = {
+                    ...orderData,
+                    userId: userId, // The user ID of the person who owns this session
+                    timestamp: new Date().toISOString()
+                };
+
+                // DEBUG: confirm values before saving
+                console.log("Submitting orderToSave:", orderToSave);
+
+                // *** PRIVATE DATA PATH: Only accessible by the manager (authenticated user) ***
+                const collectionPath = `artifacts/${appId}/users/${userId}/orders`;
+                
+                addDoc(collection(db, collectionPath), orderToSave).then(() => {
+                     showMessage(
+                        'Order Submitted!',
+                        `Your pre-order for ${formatCurrency(orderData.calculations.finalTotal)} has been submitted successfully. We will contact you soon!`,
+                        'Start New Order'
+                    );
+                    
+                    
+
+                    document.getElementById('message-button').onclick = () => { hideMessage(); selectStep('mode_selection'); };
+                }).catch((error) => {
+                     console.error("Error submitting order:", error);
+                    showMessage('Submission Failed', `There was an error saving your order. Please try again. Error: ${error.message}`, 'continue');
+                });
+                
+            } catch (error) {
+                console.error("Error submitting order (Client-side):", error);
+                showMessage('Submission Failed', `There was an error processing your order. Please check the console for details.`, 'continue');
+            }
+        }
+
+        import { doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        async function toggleDelivered(orderId, delivered) {
+          if (!db) return;
+          try {
+            const ref = doc(db, `artifacts/${appId}/users/${userId}/orders/${orderId}`);
+            await setDoc(ref, { delivered }, { merge: true });
+            console.log(`Order ${orderId} updated: delivered = ${delivered}`);
+          } catch (e) {
+            console.error("Error updating delivered status:", e);
+          }
+        }
+
+        window.app.toggleDelivered = toggleDelivered;
+
+        
+        // --- APP INITIALIZATION AND EXPORT ---
+        
+        // 1. Expose the API immediately for the HTML onclick attributes
+
+        window.app = {
+            selectStep: selectStep,
+            selectMode: selectMode,
+            selectDesign: selectDesign,
+            updateCustomization: updateCustomization,
+            handleCustomLinkInput: handleCustomLinkInput, // ✅ use this instead
+            validateQuantity: validateQuantity,
+            updateAddOns: updateAddOns,
+            addToOrder: addToOrder,
+            removeItem: removeItem,
+            goBack: goBack,
+            submitOrder: submitOrder,
+            renderOrderDashboard: renderOrderDashboard,
+            authenticateDashboard: authenticateDashboard,
+            setAuthStatus: setAuthStatus
+        };
+
+
+        // 2. Start the application ONLY when the entire DOM is loaded.
+        window.onload = function() {
+            // NOTE: If the config parsing failed above, this call will safely return early.
+            initializeFirebase(); 
+            renderModeSelection(); 
+        }
+
+    </script>
+</body>
+</html>
