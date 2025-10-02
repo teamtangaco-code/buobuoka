@@ -670,32 +670,25 @@
             let quantity = 1;
 
             if (type === 'preset') {
-                const designId = orderData.customization.designId;
-                const dimension = orderData.customization.dimension;
-                const design = PRESETS[dimension].find(d => d.id === designId);
-                quantity = parseInt(document.getElementById('quantity-preset').value) || 1;
-                
-                if (!design) return showMessage('Error', 'Please select a design.', 'continue');
+            const designId = orderData.customization.designId;
+            const dimension = orderData.customization.dimension;
+            const design = PRESETS[dimension].find(d => d.id === designId);
+            quantity = parseInt(document.getElementById('quantity-preset').value) || 1;
+    
+            if (!design) return showMessage('Error', 'Please select a design.', 'continue');
 
-                item = {
-                 name: `Custom Design: ${photoFileName}`,
-                 designId: 'custom',
-                 dimension: dimension,
-                 type: 'Custom',
-                 price: CUSTOM_PRICE,
-                 quantity: quantity
-                };
+            item = {
+             name: `${design.name} (Preset)`,
+             designId: designId,
+             dimension: dimension,
+             type: 'Preset',
+             price: BASE_PRICES[dimension],
+             quantity: quantity
+            };
+           }
 
-                item = {
-                    name: `${design.name} (Preset)`,
-                    designId: designId,
-                    dimension: dimension,
-                    type: 'Preset',
-                    price: BASE_PRICES[dimension],
-                    quantity: quantity
-                };
 
-            } else if (type === 'custom') {
+             else if (type === 'custom') {
                 const dimension = orderData.customization.dimension;
                 const photoFileName = orderData.customization.photoFileName;
                 quantity = parseInt(document.getElementById('quantity-custom').value) || 1;
