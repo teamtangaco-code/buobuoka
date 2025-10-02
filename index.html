@@ -1208,13 +1208,13 @@
         async function togglePaid(orderId, paid) {
          if (!db) return;
          try {
-         const ref = doc(db, `artifacts/${appId}/orders/${orderId}`);
-         await setDoc(ref, { paid }, { merge: true });
-         console.log(`Order ${orderId} updated: paid = ${paid}`);
-        } catch (e) {
-         console.error("Error updating paid status:", e);
+          const ref = doc(db, `artifacts/${appId}/orders/${orderId}`);
+          await setDoc(ref, { paid }, { merge: true });
+          console.log(`Order ${orderId} updated: paid = ${paid}`);
+         } catch (e) {
+          console.error("Error updating paid status:", e);
+         }
         }
-       }
 
         window.app.toggleDelivered = toggleDelivered;
         window.app.togglePaid = togglePaid; 
