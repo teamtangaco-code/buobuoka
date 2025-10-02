@@ -495,7 +495,12 @@
         }
 
         function selectMode(mode, dimension) {
-            orderData.customization = { dimension: dimension, photoFileName: null, price: BASE_PRICES[dimension] || 0 };
+            orderData.customization = { 
+             dimension: dimension, 
+             photoFileName: null, 
+             price: (mode === 'custom' ? CUSTOM_PRICE : BASE_PRICES[dimension] || 0) 
+            };
+
             
             if (mode === 'preset') {
                 renderPresetSelection(dimension);
@@ -556,7 +561,7 @@
         function renderCustomization() {
             const selectionArea = document.getElementById('selection-area');
             const dimension = orderData.customization.dimension;
-            const price = BASE_PRICES[dimension === '3D' ? '3D' : '2D'];
+            const price = CUSTOM_PRICE;
 
             selectionArea.innerHTML = `
                 <h4 class="text-xl font-bold text-gray-800 mb-4">Custom Image Upload (${formatCurrency(price)})</h4>
@@ -616,7 +621,7 @@
         }
 
         function updateCustomization(dimension) {
-            const newPrice = BASE_PRICES[dimension];
+            const newPrice = CUSTOM_PRICE;
             orderData.customization.dimension = dimension;
             orderData.customization.price = newPrice;
             
@@ -671,6 +676,15 @@
                 quantity = parseInt(document.getElementById('quantity-preset').value) || 1;
                 
                 if (!design) return showMessage('Error', 'Please select a design.', 'continue');
+
+                item = {
+                 name: `Custom Design: ${photoFileName}`,
+                 designId: 'custom',
+                 dimension: dimension,
+                 type: 'Custom',
+                 price: CUSTOM_PRICE,
+                 quantity: quantity
+                };
 
                 item = {
                     name: `${design.name} (Preset)`,
