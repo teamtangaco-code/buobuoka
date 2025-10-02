@@ -1073,13 +1073,13 @@
                                 
                                 <!-- Payment -->
                                 <td class="px-3 py-4 text-center">
-                                 <input type="checkbox" ${order.paid ? "checked" : ""} 
+                                 <input type="checkbox" ${order.paid === true ? "checked" : ""} 
                                   onchange="window.app.togglePaid('${order.id}', this.checked)">
                                 </td>
 
                                 <!-- Delivered (with strikethrough row when delivered) -->
                                 <td class="px-3 py-4 text-center">
-                                 <input type="checkbox" ${order.delivered ? "checked" : ""} 
+                                 <input type="checkbox" ${order.delivered === true ? "checked" : ""} 
                                   onchange="window.app.toggleDelivered('${order.id}', this.checked)">
                                 </td>
 
