@@ -286,6 +286,7 @@
             name: '', 
             fbLink: '', 
             gradeSection: '', 
+            affiliateCode: '',
             email: '', 
             phone: '', 
             address: '', 
@@ -816,6 +817,15 @@
                                        onchange="orderData.gradeSection=this.value">
                                   </div>
                                 </div>
+                                <div>
+                                 <label class="block mb-2 font-semibold">Affiliate Code (Optional)</label>
+                                 <input type="text" id="affiliateCode"
+                                  class="w-full border rounded p-2 mb-4"
+                                  placeholder="e.g. ANG123"
+                                  oninput="orderData.affiliateCode=this.value"
+                                  onchange="orderData.affiliateCode=this.value">
+                                </div>
+
                             </div>
                             <button type="submit" 
                                 class="mt-6 btn-primary px-6 py-3 rounded-lg font-semibold w-full text-lg">
@@ -888,6 +898,7 @@
                         <p><strong>Name:</strong> ${orderData.name}</p>
                         <p><strong>FB Profile:</strong> <a href="${orderData.fbLink}" target="_blank" class="text-blue-600">${orderData.fbLink}</a></p>
                         <p><strong>Grade & Section:</strong> ${orderData.gradeSection}</p>
+                        <p><strong>Affiliate Code:</strong> ${orderData.affiliateCode || "(None)"}</p>
                     </div>
 
                     <button onclick="window.app.submitOrder()" class="btn-primary px-6 py-4 rounded-lg font-bold w-full text-xl shadow-lg hover:shadow-xl disabled:opacity-50" ${submitDisabled ? 'disabled' : ''}>
@@ -1026,6 +1037,7 @@
                                     <div class="text-xs text-gray-500">ID: ${order.id}</div>
                                     ${order.gradeSection ? `<div class="text-xs text-gray-500">Grade: ${order.gradeSection}</div>` : ""}
                                     ${order.fbLink ? `<div class="text-xs"><a href="${order.fbLink}" target="_blank" class="text-blue-600 underline">FB</a></div>` : ""}
+                                    ${order.affiliateCode ? `<div class="text-xs text-purple-600">Affiliate: ${order.affiliateCode}</div>` : ""}
                                 </td>
 
 
