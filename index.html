@@ -11,6 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         /* Custom styles and font configuration */
+        tr.delivered-row td {
+         text-decoration: line-through;
+          color: #9ca3af; /* gray-400 */
+        }
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7f7f7; /* Light background */
@@ -292,7 +296,10 @@
             address: '', 
             customization: { dimension: null, photoFileName: null, price: 0 }, 
             calculations: { subtotal: 0, discount: 0, addOnTotal: 0, finalTotal: 0 }, 
-            timestamp: new Date().toISOString() 
+            timestamp: new Date().toISOString(),
+            paid: false,
+            delivered: false,
+            pickupDate: ''
         };
         window.orderData = orderData;
 
@@ -1027,11 +1034,15 @@
                             <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider">Total</th>
                             <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
                             <th class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider rounded-tr-lg">Delivered</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase">Payment</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase">Delivered</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase">Pickup Date</th>
+
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         ${orders.map(order => `
-                            <tr class="dashboard-table-row">
+                            <tr class="dashboard-table-row ${order.delivered ? 'delivered-row' : ''}">
                                 <td class="px-3 py-4 text-sm text-gray-900 font-semibold">
                                     ${order.name && order.name.trim() !== "" ? order.name : "(No Name Provided)"}
                                     <div class="text-xs text-gray-500">ID: ${order.id}</div>
@@ -1064,6 +1075,25 @@
                                     <input type="checkbox" ${order.delivered ? "checked" : ""} 
                                         onchange="window.app.toggleDelivered('${order.id}', this.checked)">
                                 </td>
+                                <!-- Payment -->
+                                <td class="px-3 py-4 text-center">
+                                 <input type="checkbox" ${order.paid ? "checked" : ""} 
+                                  onchange="window.app.togglePaid('${order.id}', this.checked)">
+                                </td>
+
+                                <!-- Delivered (with strikethrough row when delivered) -->
+                                <td class="px-3 py-4 text-center ${order.delivered ? 'line-through text-gray-400' : ''}">
+                                 <input type="checkbox" ${order.delivered ? "checked" : ""} 
+                                  onchange="window.app.toggleDelivered('${order.id}', this.checked)">
+                                </td>
+
+                                <!-- Pickup Date -->
+                                <td class="px-3 py-4 text-center">
+                                 <input type="date" value="${order.pickupDate || ''}" 
+                                  onchange="window.app.updatePickupDate('${order.id}', this.value)"
+                                  class="border rounded px-2 py-1 text-sm">
+                                </td>
+
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1169,8 +1199,20 @@
             console.error("Error updating delivered status:", e);
           }
         }
+        async function updatePickupDate(orderId, newDate) {
+         if (!db) return;
+         try {
+          const ref = doc(db, `artifacts/${appId}/orders/${orderId}`);
+          await setDoc(ref, { pickupDate: newDate }, { merge: true });
+          console.log(`Order ${orderId} updated: pickupDate = ${newDate}`);
+         } catch (e) {
+          console.error("Error updating pickup date:", e);
+         }
+        }
 
         window.app.toggleDelivered = toggleDelivered;
+        window.app.togglePaid = togglePaid; 
+        window.app.updatePickupDate = updatePickupDate;
 
         
         // --- APP INITIALIZATION AND EXPORT ---
