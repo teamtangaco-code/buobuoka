@@ -1078,10 +1078,11 @@
                                 </td>
 
                                 <!-- Delivered (with strikethrough row when delivered) -->
-                                <td class="px-3 py-4 text-center ${order.delivered ? 'line-through text-gray-400' : ''}">
+                                <td class="px-3 py-4 text-center">
                                  <input type="checkbox" ${order.delivered ? "checked" : ""} 
                                   onchange="window.app.toggleDelivered('${order.id}', this.checked)">
                                 </td>
+
 
                                 <!-- Pickup Date -->
                                 <td class="px-3 py-4 text-center">
