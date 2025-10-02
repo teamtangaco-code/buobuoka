@@ -299,7 +299,8 @@
             timestamp: new Date().toISOString(),
             paid: false,
             delivered: false,
-            pickupDate: ''
+            pickupDate: '',
+            confirmed: false
         };
         window.orderData = orderData;
 
@@ -1033,6 +1034,7 @@
                             <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Add-ons</th>
                             <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider">Total</th>
                             <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase">Confirmed</th>
                             <th class="px-3 py-3 text-left text-xs font-medium uppercase">Payment</th>
                             <th class="px-3 py-3 text-left text-xs font-medium uppercase">Delivered</th>
                             <th class="px-3 py-3 text-left text-xs font-medium uppercase">Pickup Date</th>
@@ -1070,7 +1072,13 @@
                                 <td class="px-3 py-4 text-xs text-gray-500">
                                     ${formatDate(order.timestamp)}
                                 </td>
-                                
+
+                                <!-- Confirmed -->
+                                <td class="px-3 py-4 text-center">
+                                 <input type="checkbox" ${order.confirmed === true ? "checked" : ""} 
+                                  onchange="window.app.toggleConfirmed('${order.id}', this.checked)">
+                                </td>
+
                                 <!-- Payment -->
                                 <td class="px-3 py-4 text-center">
                                  <input type="checkbox" ${order.paid === true ? "checked" : ""} 
@@ -1216,10 +1224,22 @@
           console.error("Error updating paid status:", e);
          }
         }
+        async function toggleConfirmed(orderId, currentValue) {
+         if (!db) return;
+         try {
+          const ref = doc(db, `artifacts/${appId}/orders/${orderId}`);
+          await setDoc(ref, { confirmed: !currentValue }, { merge: true });
+          console.log(`Order ${orderId} updated: confirmed = ${!currentValue}`);
+         } catch (e) {
+          console.error("Error updating confirmed status:", e);
+         }
+        }
+
 
         window.app.toggleDelivered = toggleDelivered;
         window.app.togglePaid = togglePaid; 
         window.app.updatePickupDate = updatePickupDate;
+        window.app.toggleConfirmed = toggleConfirmed;
 
         
         // --- APP INITIALIZATION AND EXPORT ---
