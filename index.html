@@ -767,22 +767,27 @@
         }
 
         function updateAddOns(checkbox) {
-            const id = checkbox.dataset.addonId;
-            orderData.addOns[id] = checkbox.checked;
+         const id = checkbox.dataset.addonId;
+         orderData.addOns[id] = checkbox.checked;
 
-            // Simple logic to handle combo exclusivity (optional, but good practice)
-            if (id === 'combo' && checkbox.checked) {
-                // If combo is checked, uncheck individual components
-                orderData.addOns['ferry_lights'] = false;
-                orderData.addOns['acrylic_box'] = false;
-            } else if ((id === 'ferry_lights' || id === 'acrylic_box') && checkbox.checked) {
-                // If an individual component is checked, uncheck combo
-                orderData.addOns['combo'] = false;
-            }
-            
-            // Re-render the add-ons section to update checkboxes and recalculate totals
-            renderAddOnsSelection();
-        }
+         if (id === 'combo' && checkbox.checked) {
+          // If combo is selected, force the others OFF
+          orderData.addOns['ferry_lights'] = false;
+          orderData.addOns['acrylic_box'] = false;
+         } else if ((id === 'ferry_lights' || id === 'acrylic_box') && checkbox.checked) {
+          // If an individual is selected, force combo OFF
+          orderData.addOns['combo'] = false;
+         }
+
+    // 🔑 Always clean up false values to avoid stale entries
+         Object.keys(orderData.addOns).forEach(key => {
+          if (!orderData.addOns[key]) {
+            delete orderData.addOns[key];
+          }
+         });
+
+         renderAddOnsSelection();
+       }
 
         // ---------------------------------------------------------------------
         // STEP 3: DETAILS FORM
