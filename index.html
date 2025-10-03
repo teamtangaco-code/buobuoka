@@ -342,10 +342,16 @@
             }
 
             let addOnTotal = 0;
-            Object.keys(orderData.addOns).forEach(id => {
-                const addon = ADD_ONS.find(a => a.id === id);
-                if (addon) addOnTotal += addon.price;
-            });
+            if (orderData.addOns['combo']) {
+             addOnTotal += 55; // only combo price
+            } else {
+             if (orderData.addOns['ferry_lights']) addOnTotal += 10;
+             if (orderData.addOns['acrylic_box']) addOnTotal += 50;
+            }
+            if (orderData.addOns['custom_card']) addOnTotal += 6;
+            if (orderData.addOns['delivery']) addOnTotal += 10;
+            if (orderData.addOns['built']) addOnTotal += 25;
+
 
             const finalTotal = subtotal - discount + addOnTotal;
 
