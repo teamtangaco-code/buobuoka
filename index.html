@@ -1172,10 +1172,6 @@
               alert("Sorry! We are no longer accepting new orders at this time.");
               return;
              }
-
-    
-
-             
             if (dbStatus !== 'ready' || !db) {
                 return showMessage('Database Offline', 'Cannot submit order. The database connection failed to fully authenticate. Please check the status message at the bottom of the page.', 'continue');
             }
