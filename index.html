@@ -1,4 +1,4 @@
-x <!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -121,8 +121,7 @@ x <!DOCTYPE html>
         // Global variables provided by the environment.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'buobuo-ka-orders';
         const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const ORDERS_OPEN = false; // 🚫 change to true if you want to reopen later
-
+       
         let firebaseConfig = null;
         
         // --- CRITICAL CONFIGURATION PARSING BLOCK ---
@@ -1167,11 +1166,6 @@ x <!DOCTYPE html>
         
         function submitOrder() {
             async function submitOrder() {
-                alert("Sorry! Orders are now closed. We are no longer accepting new submissions.");
-                return;
-             
-
-    // ...original submit code continues...
              
             if (dbStatus !== 'ready' || !db) {
                 return showMessage('Database Offline', 'Cannot submit order. The database connection failed to fully authenticate. Please check the status message at the bottom of the page.', 'continue');
